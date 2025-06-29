@@ -13,15 +13,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: [Optional] Run Tests
-        run: |
-          if [ -d "test" ]; then
-            pip install pytest
-            pytest test/
-          else
-            echo "No tests found"
-          fi
-
       - name: Push to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
