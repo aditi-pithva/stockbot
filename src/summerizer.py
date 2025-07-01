@@ -1,70 +1,73 @@
-import requests
-from bs4 import BeautifulSoup
+# src/summerizer.py
+import re
+import torch
+from sentence_transformers import SentenceTransformer, util
 from transformers import pipeline
-from src.predictor import get_price_data, predict_stock_trend
+from src.fetcher import fetch_news, fetch_stock_data
+from src.predictor import predict
+from src.utils import generate_feature_vector
 
-# Load LLM summarizer and sentiment model
-summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+# Load models
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
 sentiment_model = pipeline("sentiment-analysis", model="yiyanghkust/finbert-tone")
+summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
 
-def extract_news_text(url):
-    headers = {"User-Agent": "Mozilla/5.0"}
+def generate_summary(ticker, user_query="What's happening with this stock?"):
     try:
-        response = requests.get(url, headers=headers)
-        soup = BeautifulSoup(response.content, "html.parser")
-        paragraphs = soup.find_all("p")
-        text = " ".join(p.text for p in paragraphs if len(p.text) > 50)
-        return text.strip()
-    except Exception as e:
-        print(f"Failed to extract from {url}: {e}")
-        return ""
+        print(f"\n📈 Fetching price data for: {ticker}")
+        df = fetch_stock_data(ticker)
+        if df is None or df.empty:
+            print("❌ No price data available.")
+            return {"error": "No price data available."}
 
-def fetch_google_news(ticker, limit=20):
-    from googlesearch import search
-    query = f"{ticker} stock site:finance.yahoo.com"
-    return list(search(query, num=limit, stop=limit))
+        print("✅ Got price data")
+        feature_vec = generate_feature_vector(df)
+        prediction = predict(feature_vec)
+        print(f"🤖 Model Prediction: {prediction}")
 
-def summarize_stock(ticker):
-    try:
-        # Step 1: Get price trend and prediction
-        prices = get_price_data(ticker)
-        prediction = predict_stock_trend(prices)
-
-        # Step 2: Fetch and extract news articles
-        urls = fetch_google_news(ticker, limit=20)
-        news_articles = [extract_news_text(url) for url in urls]
-        news_articles = [article for article in news_articles if article]
-
+        print("📰 Fetching news articles...")
+        news_articles = fetch_news(ticker)
+        print(f"✅ News Articles Found: {len(news_articles)}")
         if not news_articles:
-            return {"error": "No news content found."}
+            return {"error": "No news found."}
 
-        # Step 3: Sentiment analysis
-        sentiments = sentiment_model([t[:512] for t in news_articles])
-        counts = {"POSITIVE": 0, "NEGATIVE": 0, "NEUTRAL": 0}
-        for res in sentiments:
-            counts[res["label"]] += 1
-        dominant_sentiment = max(counts, key=counts.get)
+        article_embeddings = embedder.encode(news_articles, convert_to_tensor=True)
+        query_embedding = embedder.encode(user_query, convert_to_tensor=True)
 
-        # Step 4: Compose prompt for LLM summarizer
-        combined_news = " ".join(news_articles[:10])
-        prompt = f"""
-Stock: {ticker.upper()}
-Sentiment: {dominant_sentiment.lower()}
-Predicted Signal: {prediction.lower()}
+        cosine_scores = util.cos_sim(query_embedding, article_embeddings)[0]
+        top_indices = torch.topk(cosine_scores, k=3).indices
+        top_articles = [news_articles[i] for i in top_indices]
 
-Recent news:
-{combined_news}
+        sentiments = sentiment_model([text[:512] for text in top_articles])
+        sentiment_counts = {"POSITIVE": 0, "NEGATIVE": 0, "NEUTRAL": 0}
+        for s in sentiments:
+            label = s["label"].upper()
+            if label in sentiment_counts:
+                sentiment_counts[label] += 1
+            else:
+                print(f"⚠️ Unexpected sentiment label: {s['label']}")
 
-Please summarize the overall trend and events affecting {ticker.upper()}, and give an investment suggestion (BUY, HOLD, or SELL) with reasoning.
-"""
+        dominant_sentiment = max(sentiment_counts, key=sentiment_counts.get)
 
-        result = summarizer(prompt, max_length=180, min_length=60, do_sample=False)
+        annotated_articles = "\n\n".join(text for text in top_articles)
+
+        prompt = (
+        f"{annotated_articles}\n\n"
+        f"Summarize how the news might impact {ticker.upper()} stock in simple terms."
+        )
+
+        summary_output = summarizer(prompt, max_length=300, min_length=200, do_sample=False)
+        summary_text = summary_output[0]["summary_text"]
+        summary_text = re.sub(r"(Summarize|Based on).*?(BUY|HOLD|SELL)[).]*", "", summary_text, flags=re.IGNORECASE).strip()
+
         return {
-            "summary": result[0]["summary_text"],
-            "sentiment": dominant_sentiment,
+            "ticker": ticker,
+            "summary": summary_text,
             "prediction": prediction,
-            "article_count": len(news_articles)
+            "sentiment": dominant_sentiment,
+            "article_count": len(news_articles),
+            "used_articles": len(top_articles)
         }
 
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": f"Summary generation failed: {e}"}

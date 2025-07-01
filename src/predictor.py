@@ -1,57 +1,74 @@
+# src/predictor.py
+
 import torch
 import torch.nn as nn
-import yfinance as yf
-import pandas as pd
 import numpy as np
 import pickle
-from sklearn.preprocessing import StandardScaler
+import os
 
-LABELS = {0: "BUY", 1: "HOLD", 2: "SELL"}
+# === Label mapping (match your training)
+LABELS = {0: "BUY", 1: "SELL", 2: "HOLD"}
 
+# === Your model class (exactly as trained)
 class StockClassifier(nn.Module):
-    def __init__(self, input_dim=5):
+    def __init__(self, input_dim=25, dropout=0.3):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(input_dim, 32),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            nn.Dropout(dropout),
             nn.Linear(32, 3)
         )
     def forward(self, x):
         return self.net(x)
 
-# Load trained model
-model = StockClassifier()
-model.load_state_dict(torch.load("models/buy_sell_model.pt", map_location=torch.device("cpu")))
-model.eval()
+# === Load scaler
+def load_scaler():
+    path = os.path.join(os.path.dirname(__file__), "..", "models", "scaler.pkl")
+    with open(path, "rb") as f:
+        return pickle.load(f)
 
-# Load saved scaler
-with open("models/scaler.pkl", "rb") as f:
-    scaler = pickle.load(f)
+# === Load model
+def load_model():
+    path = os.path.join(os.path.dirname(__file__), '..', 'models', 'tenson.pt')
+    model = StockClassifier()
+    model.load_state_dict(torch.load(path, map_location="cpu"))
+    model.eval()
+    return model
 
-def get_price_data(ticker):
-    """Fetch recent stock price data from yfinance"""
-    try:
-        df = yf.Ticker(ticker).history(period="5d")
-        return df if not df.empty else None
-    except Exception as e:
-        print("Error fetching price data:", e)
-        return None
+# === Main prediction function
+def predict(feature_vector):
+    """
+    Input: list of 25 raw (unscaled) feature values
+    Output: 'BUY', 'SELL', or 'HOLD'
+    """
+    assert len(feature_vector) == 25, "❌ Feature vector must have 25 values."
 
-def predict_stock_trend(prices_df):
-    """Run prediction on latest available stock data"""
-    if prices_df is None or len(prices_df) == 0:
-        return "HOLD"
+    model = load_model()
+    scaler = load_scaler()
 
-    try:
-        latest = prices_df.iloc[-1][["Open", "High", "Low", "Close", "Volume"]].values.reshape(1, -1)
-        latest_scaled = scaler.transform(latest)
-        X_tensor = torch.tensor(latest_scaled, dtype=torch.float32)
+    # Scale features
+    scaled = scaler.transform([feature_vector])
+    x_tensor = torch.tensor(scaled, dtype=torch.float32)
 
-        with torch.no_grad():
-            logits = model(X_tensor)
-            prediction = torch.argmax(logits, dim=1).item()
-            return LABELS[prediction]
-    except Exception as e:
-        print("Prediction error:", e)
-        return "HOLD"
+    # Predict
+    with torch.no_grad():
+        logits = model(x_tensor)
+        prediction = torch.argmax(logits, dim=1).item()
+
+    return LABELS[prediction]
+
+# === Manual test
+if __name__ == "__main__":
+    from fetcher import fetch_stock_data
+    from utils import generate_feature_vector
+
+    ticker = "AAPL"  # Change this to test other stocks
+    df = fetch_stock_data(ticker)
+    features = generate_feature_vector(df)
+
+    if features:
+        result = predict(features)
+        print(f"📈 Prediction for {ticker}: {result}")
+    else:
+        print("❌ Failed to generate valid features.")
