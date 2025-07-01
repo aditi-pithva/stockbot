@@ -1,9 +1,41 @@
 # src/summerizer.py
 import re
 import torch
+import os
 from src.fetcher import fetch_news, fetch_stock_data
 from src.predictor import predict
 from src.utils import generate_feature_vector
+
+# Set up local models directory
+MODELS_DIR = os.path.join(os.path.dirname(__file__), "..", "models")
+TRANSFORMERS_CACHE = os.path.join(MODELS_DIR, "transformers_cache")
+SENTENCE_TRANSFORMERS_CACHE = os.path.join(MODELS_DIR, "sentence_transformers")
+
+# Create directories with proper permissions
+def setup_model_directories():
+    try:
+        os.makedirs(MODELS_DIR, exist_ok=True)
+        os.makedirs(TRANSFORMERS_CACHE, exist_ok=True)
+        os.makedirs(SENTENCE_TRANSFORMERS_CACHE, exist_ok=True)
+        
+        # Set permissions to be writable
+        os.chmod(MODELS_DIR, 0o755)
+        os.chmod(TRANSFORMERS_CACHE, 0o755)
+        os.chmod(SENTENCE_TRANSFORMERS_CACHE, 0o755)
+        
+        print(f"✅ Model directories created: {MODELS_DIR}")
+        return True
+    except Exception as e:
+        print(f"⚠️ Could not create model directories: {e}")
+        return False
+
+# Set environment variables for model caching
+os.environ["TRANSFORMERS_CACHE"] = TRANSFORMERS_CACHE
+os.environ["HF_HOME"] = TRANSFORMERS_CACHE
+os.environ["SENTENCE_TRANSFORMERS_HOME"] = SENTENCE_TRANSFORMERS_CACHE
+
+# Initialize directories
+setup_model_directories()
 
 # Lazy loading for models to prevent startup timeout
 _embedder = None
@@ -13,23 +45,70 @@ _summarizer = None
 def get_embedder():
     global _embedder
     if _embedder is None:
-        from sentence_transformers import SentenceTransformer
-        _embedder = SentenceTransformer("all-MiniLM-L6-v2")
+        try:
+            from sentence_transformers import SentenceTransformer
+            print("📥 Downloading sentence transformer model...")
+            _embedder = SentenceTransformer("all-MiniLM-L6-v2", cache_folder=SENTENCE_TRANSFORMERS_CACHE)
+            print("✅ Sentence transformer model loaded successfully")
+        except Exception as e:
+            print(f"⚠️ Error loading embedder: {e}")
+            # Fallback: return a dummy embedder
+            _embedder = DummyEmbedder()
     return _embedder
 
 def get_sentiment_model():
     global _sentiment_model
     if _sentiment_model is None:
-        from transformers import pipeline
-        _sentiment_model = pipeline("sentiment-analysis", model="yiyanghkust/finbert-tone")
+        try:
+            from transformers import pipeline
+            print("📥 Downloading FinBERT sentiment model...")
+            _sentiment_model = pipeline("sentiment-analysis", 
+                                      model="yiyanghkust/finbert-tone",
+                                      model_kwargs={"cache_dir": TRANSFORMERS_CACHE})
+            print("✅ FinBERT sentiment model loaded successfully")
+        except Exception as e:
+            print(f"⚠️ Error loading sentiment model: {e}")
+            # Fallback: return dummy sentiment analyzer
+            _sentiment_model = DummySentimentModel()
     return _sentiment_model
 
 def get_summarizer():
     global _summarizer
     if _summarizer is None:
-        from transformers import pipeline
-        _summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+        try:
+            from transformers import pipeline
+            print("📥 Downloading BART summarization model...")
+            _summarizer = pipeline("summarization", 
+                                 model="facebook/bart-large-cnn",
+                                 model_kwargs={"cache_dir": TRANSFORMERS_CACHE})
+            print("✅ BART summarization model loaded successfully")
+        except Exception as e:
+            print(f"⚠️ Error loading summarizer: {e}")
+            # Fallback: return dummy summarizer
+            _summarizer = DummySummarizer()
     return _summarizer
+
+# Dummy classes for fallback when models can't be loaded
+class DummyEmbedder:
+    def encode(self, texts, convert_to_tensor=False):
+        import numpy as np
+        if isinstance(texts, str):
+            texts = [texts]
+        # Return random embeddings
+        embeddings = np.random.rand(len(texts), 384)
+        if convert_to_tensor:
+            return torch.tensor(embeddings, dtype=torch.float32)
+        return embeddings
+
+class DummySentimentModel:
+    def __call__(self, texts):
+        import random
+        return [{"label": random.choice(["POSITIVE", "NEGATIVE", "NEUTRAL"]), 
+                "score": 0.8} for _ in texts]
+
+class DummySummarizer:
+    def __call__(self, text, max_length=300, min_length=200, do_sample=False):
+        return [{"summary_text": "Market analysis temporarily unavailable. Please try again later."}]
 
 def generate_summary(ticker, user_query="What's happening with this stock?"):
     try:
