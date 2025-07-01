@@ -8,3 +8,6 @@ torch
 scikit-learn
 plotly
 googlesearch-python
+sentence-transformers
+pandas
+numpy

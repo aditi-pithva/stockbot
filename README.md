@@ -1,20 +1,35 @@
 ---
-title: Stockbot
-emoji: 🚀
-colorFrom: red
-colorTo: red
+title: StockBot
+emoji: �
+colorFrom: yellow
+colorTo: gold
 sdk: docker
-app_port: 8501
+app_port: 7860
 tags:
 - streamlit
+- finance
+- stocks
+- chatbot
 pinned: false
-short_description: Stock chatbot
+short_description: Real-time stock market chatbot with AI predictions
 license: mit
 ---
 
-# Welcome to Streamlit!
+# StockBot 📈
 
-Edit `/src/streamlit_app.py` to customize this app to your heart's desire. :heart:
+An AI-powered chatbot for real-time stock market analysis and predictions.
 
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
+## Features
+
+- Real-time stock price data
+- Market sentiment analysis
+- Stock predictions using ML models
+- Interactive chat interface
+- Global market snapshots
+
+## Usage
+
+Ask questions about stocks like:
+- "How is Tesla doing?"
+- "What's the prediction for Apple?"
+- "Tell me about NVIDIA"

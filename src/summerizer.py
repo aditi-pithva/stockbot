@@ -1,16 +1,35 @@
 # src/summerizer.py
 import re
 import torch
-from sentence_transformers import SentenceTransformer, util
-from transformers import pipeline
 from src.fetcher import fetch_news, fetch_stock_data
 from src.predictor import predict
 from src.utils import generate_feature_vector
 
-# Load models
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
-sentiment_model = pipeline("sentiment-analysis", model="yiyanghkust/finbert-tone")
-summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+# Lazy loading for models to prevent startup timeout
+_embedder = None
+_sentiment_model = None
+_summarizer = None
+
+def get_embedder():
+    global _embedder
+    if _embedder is None:
+        from sentence_transformers import SentenceTransformer
+        _embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    return _embedder
+
+def get_sentiment_model():
+    global _sentiment_model
+    if _sentiment_model is None:
+        from transformers import pipeline
+        _sentiment_model = pipeline("sentiment-analysis", model="yiyanghkust/finbert-tone")
+    return _sentiment_model
+
+def get_summarizer():
+    global _summarizer
+    if _summarizer is None:
+        from transformers import pipeline
+        _summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+    return _summarizer
 
 def generate_summary(ticker, user_query="What's happening with this stock?"):
     try:
@@ -30,6 +49,12 @@ def generate_summary(ticker, user_query="What's happening with this stock?"):
         print(f"✅ News Articles Found: {len(news_articles)}")
         if not news_articles:
             return {"error": "No news found."}
+
+        embedder = get_embedder()
+        sentiment_model = get_sentiment_model()
+        summarizer = get_summarizer()
+        
+        from sentence_transformers import util
 
         article_embeddings = embedder.encode(news_articles, convert_to_tensor=True)
         query_embedding = embedder.encode(user_query, convert_to_tensor=True)

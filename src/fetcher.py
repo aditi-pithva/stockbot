@@ -13,7 +13,7 @@ def fetch_news(company_name, num_articles=10):
     headers = {'User-Agent': 'Mozilla/5.0'}
     
     try:
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=10)  # Added timeout
         soup = BeautifulSoup(response.text, 'lxml')
         return [item.text.strip() for item in soup.select("article")[:num_articles]]
     except Exception as e:

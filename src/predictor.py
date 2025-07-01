@@ -24,17 +24,32 @@ class StockClassifier(nn.Module):
 
 # === Load scaler
 def load_scaler():
-    path = os.path.join(os.path.dirname(__file__), "..", "models", "scaler.pkl")
-    with open(path, "rb") as f:
-        return pickle.load(f)
+    try:
+        path = os.path.join(os.path.dirname(__file__), "..", "models", "scaler.pkl")
+        with open(path, "rb") as f:
+            return pickle.load(f)
+    except FileNotFoundError:
+        print("⚠️ Scaler model not found, using fallback")
+        # Return a dummy scaler that doesn't transform the data
+        from sklearn.preprocessing import StandardScaler
+        scaler = StandardScaler()
+        scaler.mean_ = np.zeros(25)
+        scaler.scale_ = np.ones(25)
+        return scaler
 
 # === Load model
 def load_model():
-    path = os.path.join(os.path.dirname(__file__), '..', 'models', 'tenson.pt')
-    model = StockClassifier()
-    model.load_state_dict(torch.load(path, map_location="cpu"))
-    model.eval()
-    return model
+    try:
+        path = os.path.join(os.path.dirname(__file__), '..', 'models', 'tenson.pt')
+        model = StockClassifier()
+        model.load_state_dict(torch.load(path, map_location="cpu"))
+        model.eval()
+        return model
+    except FileNotFoundError:
+        print("⚠️ Model file not found, using fallback")
+        # Return a dummy model that gives random predictions
+        model = StockClassifier()
+        return model
 
 # === Main prediction function
 def predict(feature_vector):

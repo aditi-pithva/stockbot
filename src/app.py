@@ -1,13 +1,26 @@
 import streamlit as st
 import re
-from src.fetcher import fetch_news, fetch_price_data, fetch_index_price
-from src.summerizer import generate_summary
-from src.utils import plot_price_chart
+import sys
+import os
 
-# ──────────────────────────────
-# Page Config & Style
-# ──────────────────────────────
+# Configure page first
 st.set_page_config(page_title="StockBot Chat", layout="wide")
+
+# Add startup indicator
+if "app_started" not in st.session_state:
+    st.session_state.app_started = True
+    print("🚀 StockBot starting up...")
+
+# Error handling for imports
+try:
+    from src.fetcher import fetch_news, fetch_price_data, fetch_index_price
+    from src.summerizer import generate_summary
+    from src.utils import plot_price_chart
+    print("✅ All modules imported successfully")
+except ImportError as e:
+    st.error(f"Import Error: {e}")
+    print(f"❌ Import Error: {e}")
+    st.stop()
 
 # Enlarged Chat + Input
 st.markdown("""
@@ -56,22 +69,48 @@ card_style = """
     </div>
 """
 
+# Initialize market data with fallbacks
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_market_data():
+    try:
+        return {
+            "SP500": fetch_index_price("^GSPC"),
+            "NASDAQ": fetch_index_price("^IXIC"), 
+            "DOW": fetch_index_price("^DJI"),
+            "BTC": fetch_index_price("BTC-USD"),
+            "ETH": fetch_index_price("ETH-USD"),
+            "AAPL": fetch_index_price("AAPL")
+        }
+    except Exception as e:
+        st.error(f"⚠️ Market data temporarily unavailable: {e}")
+        return {
+            "SP500": "Loading...",
+            "NASDAQ": "Loading...", 
+            "DOW": "Loading...",
+            "BTC": "Loading...",
+            "ETH": "Loading...",
+            "AAPL": "Loading..."
+        }
+
+market_data = get_market_data()
+
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.markdown(card_style.format(title="📈 S&P 500", value=fetch_index_price("^GSPC")), unsafe_allow_html=True)
-    st.markdown(card_style.format(title="💹 NASDAQ", value=fetch_index_price("^IXIC")), unsafe_allow_html=True)
+    st.markdown(card_style.format(title="📈 S&P 500", value=market_data["SP500"]), unsafe_allow_html=True)
+    st.markdown(card_style.format(title="💹 NASDAQ", value=market_data["NASDAQ"]), unsafe_allow_html=True)
 with col2:
-    st.markdown(card_style.format(title="🏦 Dow Jones", value=fetch_index_price("^DJI")), unsafe_allow_html=True)
-    st.markdown(card_style.format(title="₿ Bitcoin", value="$" + fetch_index_price("BTC-USD")), unsafe_allow_html=True)
+    st.markdown(card_style.format(title="🏦 Dow Jones", value=market_data["DOW"]), unsafe_allow_html=True)
+    st.markdown(card_style.format(title="₿ Bitcoin", value="$" + market_data["BTC"]), unsafe_allow_html=True)
 with col3:
-    st.markdown(card_style.format(title="🔷 Ethereum", value="$" + fetch_index_price("ETH-USD")), unsafe_allow_html=True)
-    st.markdown(card_style.format(title="🍏 Apple", value="$" + fetch_index_price("AAPL")), unsafe_allow_html=True)
+    st.markdown(card_style.format(title="🔷 Ethereum", value="$" + market_data["ETH"]), unsafe_allow_html=True)
+    st.markdown(card_style.format(title="🍏 Apple", value="$" + market_data["AAPL"]), unsafe_allow_html=True)
 
 # ──────────────────────────────
 # Trending Stocks
 # ──────────────────────────────
 st.markdown("### 🔥 Trending Stocks This Week")
 
+@st.cache_data(ttl=600)  # Cache for 10 minutes
 def get_trending_stock_data(tickers):
     import yfinance as yf
     data = {}
@@ -79,27 +118,33 @@ def get_trending_stock_data(tickers):
         try:
             info = yf.Ticker(ticker)
             history = info.history(period="5d")
-            last_close = history['Close'][-1]
-            prev_close = history['Close'][-2]
-            change = last_close - prev_close
-            pct_change = (change / prev_close) * 100
-            data[ticker] = {
-                "price": f"${last_close:,.2f}",
-                "change": f"{'▲' if change > 0 else '▼'} {pct_change:.2f}%",
-                "color": "green" if change > 0 else "red"
-            }
+            if len(history) >= 2:
+                last_close = history['Close'][-1]
+                prev_close = history['Close'][-2]
+                change = last_close - prev_close
+                pct_change = (change / prev_close) * 100
+                data[ticker] = {
+                    "price": f"${last_close:,.2f}",
+                    "change": f"{'▲' if change > 0 else '▼'} {pct_change:.2f}%",
+                    "color": "green" if change > 0 else "red"
+                }
+            else:
+                data[ticker] = {"price": "N/A", "change": "↕", "color": "gray"}
         except:
             data[ticker] = {"price": "N/A", "change": "↕", "color": "gray"}
     return data
 
 trending = ["TSLA", "NVDA", "GOOGL", "META", "AMD"]
-trends = get_trending_stock_data(trending)
-trend_cols = st.columns(len(trending))
-for i, ticker in enumerate(trending):
-    with trend_cols[i]:
-        st.markdown(f"**📊 {ticker}**")
-        st.markdown(f"<h2>{trends[ticker]['price']}</h2>", unsafe_allow_html=True)
-        st.markdown(f"<span style='color:{trends[ticker]['color']};'>{trends[ticker]['change']}</span>", unsafe_allow_html=True)
+try:
+    trends = get_trending_stock_data(trending)
+    trend_cols = st.columns(len(trending))
+    for i, ticker in enumerate(trending):
+        with trend_cols[i]:
+            st.markdown(f"**📊 {ticker}**")
+            st.markdown(f"<h2>{trends[ticker]['price']}</h2>", unsafe_allow_html=True)
+            st.markdown(f"<span style='color:{trends[ticker]['color']};'>{trends[ticker]['change']}</span>", unsafe_allow_html=True)
+except Exception as e:
+    st.warning("⚠️ Trending stocks data temporarily unavailable")
 
 # ──────────────────────────────
 # Chat History
