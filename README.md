@@ -1,5 +1,19 @@
 ---
 title: StockBot
+emoji: 🤖
+colorFrom: yellow
+colorTo: green
+sdk: docker
+app_port: 7860
+tags:
+- streamlit
+- finance
+- stocks
+- chatbot
+pinned: false
+short_description: Real-time stock market chatbot with AI predictions
+license: mit
+---kBot
 emoji: �
 colorFrom: yellow
 colorTo: gold
