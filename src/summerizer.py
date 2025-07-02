@@ -202,7 +202,11 @@ def generate_summary(ticker, user_query="What's happening with this stock?"):
         if feature_vec is not None:
             # Filter features for prediction based on training selection
             filtered_features = filter_features_for_prediction(feature_vec, feature_names)
-            prediction = predict(filtered_features, feature_names)
+            prediction_result = predict(filtered_features, feature_names)
+            if prediction_result and isinstance(prediction_result, dict):
+                prediction = prediction_result['prediction']
+            else:
+                prediction = "HOLD"
             print(f"🤖 Model Prediction: {prediction}")
         else:
             prediction = "HOLD"
