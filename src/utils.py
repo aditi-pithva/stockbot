@@ -42,20 +42,109 @@ def plot_price_chart(prices, ticker):
 
 def generate_feature_vector(df):
     """
-    Convert 7-day OHLCV data into a 25-feature vector.
-    Returns: list of 25 float values or None if data is invalid.
+    Convert 7-day OHLCV data into enhanced feature vector with technical indicators.
+    Returns: tuple of (feature_vector, feature_names) or (None, None) if data is invalid.
     """
     if df is None or len(df) < 5:
-        return None
+        return None, None
 
+    # Import here to avoid circular imports
+    import sys
+    import os
+    import pandas as pd
+    import numpy as np
+    sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+    
+    try:
+        from enhanced_feature_engineering import calculate_technical_indicators
+        
+        # Use enhanced technical indicators
+        features_dict = calculate_technical_indicators(df)
+        if features_dict is None:
+            return None, None
+        
+        # Convert to list and feature names (exclude metadata)
+        exclude_keys = ['ticker', 'date', 'label']
+        feature_names = [k for k in features_dict.keys() if k not in exclude_keys]
+        feature_vector = [features_dict[k] for k in feature_names]
+        
+        # Handle any NaN values
+        feature_vector = [0.0 if pd.isna(x) or np.isinf(x) else float(x) for x in feature_vector]
+        
+        return feature_vector, feature_names
+        
+    except ImportError:
+        # Fallback to basic features if enhanced module not available
+        print("Enhanced features not available, using basic features")
+        return generate_basic_feature_vector(df)
+
+def generate_basic_feature_vector(df):
+    """
+    Fallback function for basic feature generation (original implementation)
+    """
+    import pandas as pd
+    import numpy as np
+    
     vec = []
+    feature_names = []
+    
     for col in ["Open", "High", "Low", "Close", "Volume"]:
         series = df[col]
-        vec.extend([
+        col_lower = col.lower()
+        
+        values = [
             series.mean(),
             series.std(),
             series.max(),
             series.min(),
             series.iloc[-1]  # latest value
-        ])
-    return vec
+        ]
+        
+        names = [
+            f"{col_lower}_mean",
+            f"{col_lower}_std", 
+            f"{col_lower}_max",
+            f"{col_lower}_min",
+            f"{col_lower}_latest"
+        ]
+        
+        vec.extend(values)
+        feature_names.extend(names)
+    
+    return vec, feature_names
+
+def get_selected_features():
+    """
+    Get the list of selected features from the trained model.
+    Returns the selected feature names or all 25 features if no selection info.
+    """
+    import json
+    import os
+    
+    try:
+        feature_info_path = os.path.join(os.path.dirname(__file__), "..", "models", "feature_info.json")
+        with open(feature_info_path, "r") as f:
+            feature_info = json.load(f)
+        return feature_info.get('selected_features', None)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+def filter_features_for_prediction(feature_vector, feature_names):
+    """
+    Filter feature vector to only include selected features for prediction.
+    """
+    selected_features = get_selected_features()
+    
+    if selected_features is None:
+        # No feature selection info, return all features
+        return feature_vector
+    
+    # Filter to selected features
+    try:
+        selected_indices = [feature_names.index(feat) for feat in selected_features if feat in feature_names]
+        filtered_vector = [feature_vector[i] for i in selected_indices]
+        print(f"Filtered from {len(feature_vector)} to {len(filtered_vector)} features")
+        return filtered_vector
+    except (ValueError, IndexError) as e:
+        print(f"Error filtering features: {e}")
+        return feature_vector

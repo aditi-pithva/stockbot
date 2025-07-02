@@ -1,0 +1,51 @@
+{
+  "selected_features": [
+    "close_price",
+    "volume",
+    "daily_return",
+    "weekly_return",
+    "price_momentum_3d",
+    "price_volatility",
+    "high_low_ratio",
+    "close_to_high_ratio",
+    "close_to_low_ratio",
+    "volume_ratio",
+    "bb_position",
+    "distance_to_high",
+    "distance_to_low",
+    "gap_up",
+    "gap_down",
+    "intraday_return",
+    "intraday_high_reach",
+    "intraday_low_reach",
+    "bullish_days_ratio"
+  ],
+  "input_dim": 19,
+  "original_features": 33,
+  "removed_features": [
+    "trend_slope",
+    "open_price",
+    "sma_3",
+    "sma_7",
+    "macd",
+    "price_volume",
+    "price_to_sma7",
+    "price_to_sma3",
+    "ema_3",
+    "rsi",
+    "vpt",
+    "high_price",
+    "low_price",
+    "volume_sma"
+  ],
+  "model_params": {
+    "hidden_dim1": 128,
+    "hidden_dim2": 64,
+    "hidden_dim3": 32,
+    "dropout_rate": 0.3
+  },
+  "correlation_threshold": 0.85,
+  "dataset_info": {
+    "shape": "(912, 36)"
+  }
+}

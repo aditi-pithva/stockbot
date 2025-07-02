@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-Preload AI models for StockBot to avoid delays during first use.
-Run this script after installation to download and cache models.
-"""
 
 import os
 import sys

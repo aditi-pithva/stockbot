@@ -30,7 +30,7 @@ COPY . .
 RUN chmod -R 777 /app/models
 
 # Optional: Pre-download models during build (comment out if causing issues)
-RUN python download_models.py || echo "⚠️ Model pre-download failed, will download at runtime"
+RUN python download_models.py || echo "Model pre-download failed, will download at runtime"
 
 # Add healthcheck
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
