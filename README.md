@@ -1,3 +1,13 @@
+---
+title: StockBot
+emoji: 📈
+colorFrom: yellow
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # StockBot
 
 AI-powered stock market chatbot with neural network predictions and real-time sentiment analysis.
