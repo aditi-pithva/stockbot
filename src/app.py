@@ -2,6 +2,13 @@ import streamlit as st
 import re
 import sys
 import os
+import warnings
+
+# Suppress common warnings that appear during model loading
+warnings.filterwarnings("ignore", message=".*Could not cache non-existence of file.*")
+warnings.filterwarnings("ignore", message=".*Device set to use cpu.*")
+warnings.filterwarnings("ignore", message=".*max_length.*")
+warnings.filterwarnings("ignore", category=UserWarning, module="transformers")
 
 # Configure page first
 st.set_page_config(page_title="StockBot Chat", layout="wide")

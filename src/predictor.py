@@ -5,6 +5,10 @@ import torch.nn as nn
 import numpy as np
 import pickle
 import os
+import warnings
+
+# Suppress device warnings
+warnings.filterwarnings("ignore", message=".*Device set to use cpu.*")
 
 # === Label mapping (match your training)
 LABELS = {0: "BUY", 1: "SELL", 2: "HOLD"}
@@ -42,7 +46,10 @@ def load_model():
     try:
         path = os.path.join(os.path.dirname(__file__), '..', 'models', 'tenson.pt')
         model = StockClassifier()
-        model.load_state_dict(torch.load(path, map_location="cpu"))
+        # Suppress warnings during model loading
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            model.load_state_dict(torch.load(path, map_location="cpu"))
         model.eval()
         return model
     except FileNotFoundError:

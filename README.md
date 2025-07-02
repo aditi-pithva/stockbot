@@ -20,6 +20,43 @@ license: mit
 
 An AI-powered chatbot for real-time stock market analysis and predictions using machine learning.
 
+## 🚀 Quick Start
+
+### 1. Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/stockbot.git
+cd stockbot
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 2. Model Preloading (Recommended)
+
+To avoid delays during first use, preload the AI models:
+
+```bash
+# Download and cache all AI models (5-10 minutes)
+python preload_models.py
+```
+
+This will download:
+- 📝 Sentence Transformer model (85MB)
+- 💭 FinBERT sentiment model (440MB) 
+- 📋 BART summarization model (1.6GB)
+
+**Note**: Without preloading, the first query will take 5+ minutes to download models.
+
+### 3. Run the Application
+
+```bash
+streamlit run app.py
+```
+
+The app will be available at `http://localhost:8501`
+
 ## 🏗️ Architecture Overview
 
 ### System Components
@@ -242,5 +279,22 @@ sentence-transformers
 pandas
 numpy
 ```
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**Stuck at "🔍 Analyzing..."**: 
+- Run `python preload_models.py` first
+- Models are downloading in the background
+- Wait 5-10 minutes for first-time setup
+
+**Permission Errors**:
+- Models will fallback to basic analysis
+- All core functionality remains available
+
+**Memory Issues**:
+- Use CPU-only mode (default)
+- Models auto-fallback on memory errors
 
 ---

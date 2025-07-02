@@ -12,12 +12,14 @@ RUN apt-get update && apt-get install -y \
 # Create models directory structure with proper permissions
 RUN mkdir -p /app/models/transformers_cache && \
     mkdir -p /app/models/sentence_transformers && \
-    chmod -R 755 /app/models
+    chmod -R 777 /app/models
 
 # Set environment variables for model caching to local directory
 ENV TRANSFORMERS_CACHE=/app/models/transformers_cache
 ENV HF_HOME=/app/models/transformers_cache
 ENV SENTENCE_TRANSFORMERS_HOME=/app/models/sentence_transformers
+ENV TOKENIZERS_PARALLELISM=false
+ENV PYTHONWARNINGS=ignore
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -25,7 +27,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Ensure models directory has correct permissions after copy
-RUN chmod -R 755 /app/models
+RUN chmod -R 777 /app/models
 
 # Optional: Pre-download models during build (comment out if causing issues)
 RUN python download_models.py || echo "⚠️ Model pre-download failed, will download at runtime"
