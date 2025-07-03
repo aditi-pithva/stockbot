@@ -113,7 +113,7 @@ streamlit run app.py
 - **GitHub Actions**: Automated CI/CD pipeline for testing and deployment
 - **Hugging Face Spaces**: Cloud hosting platform with automatic scaling and public access
 
-## 🤖 AI Models
+## AI Models
 
 ### 1. Stock Price Predictor
 - **Type**: Custom PyTorch Neural Network
@@ -155,7 +155,7 @@ class EnhancedStockPredictor(nn.Module):
 - **Purpose**: Match user queries with relevant news
 - **Method**: Cosine similarity ranking
 
-## 📊 Feature Engineering
+## Feature Engineering
 
 ### Technical Indicators (19 features)
 ```python
@@ -190,7 +190,7 @@ features = {
 4. **Correlation**: Feature selection (removed 14 correlated features)
 5. **Training**: Bayesian hyperparameter optimization
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 stockbot/
@@ -212,7 +212,7 @@ stockbot/
 └── Dockerfile             # Container config
 ```
 
-## 🔧 Technical Stack
+## Technical Stack
 
 **Core**: Python 3.8+, PyTorch, Transformers, Streamlit  
 **Data**: yfinance, pandas, numpy, scikit-learn  
@@ -220,7 +220,7 @@ stockbot/
 **Visualization**: plotly, matplotlib, seaborn  
 **Deployment**: Docker, Hugging Face Spaces
 
-## 📈 Usage Examples
+## Usage Examples
 
 ```python
 # Natural language queries
@@ -230,6 +230,6 @@ stockbot/
 "Show me Bitcoin trends"             # → Price visualization
 ```
 
-## ⚠️ Disclaimer
+## Disclaimer
 
 This is an educational project. Not financial advice. Always consult financial professionals before making investment decisions.
